@@ -3,7 +3,7 @@ name: Release
 on:
   workflow_dispatch:
   push:
-    branches: [ master ]   # 你的分支叫 main 就写 main
+    branches: [ main ]
 
 jobs:
   build_and_release:
