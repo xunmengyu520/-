@@ -277,22 +277,38 @@ bool CheckPort () {
 }
 
 void CheckIfGameRunning(void*) {
+	uint64_t lastSeenFrame = 0;
+	int stallSeconds = 0;
 	do {
-		if (!check && R_FAILED(pmdmntGetApplicationProcessId(&PID))) {
-			GameRunning = false;
-			check = true;
-		}
-		else if (!GameRunning && SharedMemoryUsed) {
+		if (SharedMemoryUsed) {
+			if (!NxFps) {
 				uintptr_t base = (uintptr_t)shmemGetAddr(&_sharedmemory);
 				searchSharedMemoryBlock(base);
-				if (NxFps) {
+			}
+			if (NxFps) {
+				if (!GameRunning) {
 					(NxFps -> pluginActive) = false;
 					svcSleepThread(100'000'000);
 					if ((NxFps -> pluginActive)) {
 						GameRunning = true;
-						check = false;
+						lastSeenFrame = NxFps -> frameNumber;
+						stallSeconds = 0;
 					}
 				}
+				else {
+					uint64_t cur = NxFps -> frameNumber;
+					if (cur != lastSeenFrame) {
+						lastSeenFrame = cur;
+						stallSeconds = 0;
+					}
+					else if (++stallSeconds >= 3) {
+						stallSeconds = 0;
+						(NxFps -> pluginActive) = false;
+						svcSleepThread(100'000'000);
+						if (!(NxFps -> pluginActive)) GameRunning = false;
+					}
+				}
+			}
 		}
 	} while (!leventWait(&threadexit, 1'000'000'000));
 }
